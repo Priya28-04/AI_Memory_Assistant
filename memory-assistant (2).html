@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mnemosyne — AI Memory Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #141418;
+    --surface2: #1c1c22;
+    --surface3: #24242c;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8e6f0;
+    --text2: #9490a8;
+    --text3: #5a5670;
+    --accent: #c9b8ff;
+    --accent-dim: #7c6fbf;
+    --accent-glow: rgba(201,184,255,0.12);
+    --gold: #e8c882;
+    --gold-dim: #a08840;
+    --teal: #7fd4c4;
+    --teal-dim: #2a7068;
+    --danger: #ff7b7b;
+    --success: #7fd4a0;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --serif: 'Playfair Display', serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent-dim), var(--teal-dim));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text {
+    font-family: var(--serif);
+    font-size: 1.35rem;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-left: auto;
+  }
+
+  .api-key-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .api-input {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: var(--text2);
+    font-family: var(--mono);
+    font-size: 12px;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .api-input:focus { border-color: var(--accent-dim); color: var(--text); }
+  .api-input::placeholder { color: var(--text3); }
+
+  .btn-save-key {
+    background: var(--accent-dim);
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-save-key:hover { background: var(--accent); color: var(--bg); }
+
+  /* ── LAYOUT ── */
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* ── SIDEBAR ── */
+  aside {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-section {
+    padding: 1.25rem 1.25rem 0.75rem;
+    font-size: 10px;
+    font-family: var(--mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .tag-list {
+    padding: 0 1rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 12px;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--mono);
+  }
+  .tag:hover, .tag.active {
+    background: var(--accent-glow);
+    border-color: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .stats-block {
+    padding: 0 1rem 1rem;
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { font-size: 12px; color: var(--text3); }
+  .stat-val {
+    font-size: 14px;
+    font-family: var(--mono);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .recent-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 0.5rem 1rem;
+  }
+
+  .recent-item {
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 2px;
+  }
+  .recent-item:hover { background: var(--surface2); }
+  .recent-item.selected { background: var(--accent-glow); border-left: 2px solid var(--accent-dim); }
+  .recent-item-title {
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .recent-item-date {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+    margin-top: 2px;
+  }
+
+  /* ── MAIN ── */
+  main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+
+  .search-wrap {
+    flex: 1;
+    position: relative;
+    min-width: 200px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text3);
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  .search-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 9px 12px 9px 36px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: var(--sans);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: var(--accent-dim); }
+  .search-input::placeholder { color: var(--text3); }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-family: var(--sans);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid var(--border2);
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: var(--accent-dim);
+    color: #fff;
+    border-color: transparent;
+  }
+  .btn-primary:hover { background: var(--accent); color: var(--bg); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text2);
+  }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+
+  .btn-teal {
+    background: var(--teal-dim);
+    color: #fff;
+    border-color: transparent;
+  }
+  .btn-teal:hover { background: var(--teal); color: var(--bg); }
+
+  /* ── CONTENT AREA ── */
+  .content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    overflow: hidden;
+  }
+
+  /* ── MEMORIES GRID ── */
+  .memories-panel {
+    overflow-y: auto;
+    padding: 1.5rem;
+  }
+
+  .memories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+
+  .memory-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.1rem 1.25rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .memory-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-glow);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .memory-card:hover {
+    border-color: var(--border2);
+    background: var(--surface2);
+  }
+  .memory-card:hover::before { opacity: 1; }
+  .memory-card.selected {
+    border-color: var(--accent-dim);
+    background: var(--surface2);
+  }
+  .memory-card.selected::before {
+    background: linear-gradient(90deg, var(--accent), var(--teal));
+    opacity: 1;
+  }
+
+  .card-type {
+    font-size: 10px;
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .type-personal { background: rgba(201,184,255,0.12); color: var(--accent); }
+  .type-work { background: rgba(232,200,130,0.12); color: var(--gold); }
+  .type-idea { background: rgba(127,212,196,0.12); color: var(--teal); }
+  .type-fact { background: rgba(255,123,123,0.12); color: var(--danger); }
+  .type-goal { background: rgba(127,212,160,0.12); color: var(--success); }
+
+  .card-title {
+    font-family: var(--serif);
+    font-size: 15px;
+    color: var(--text);
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+
+  .card-preview {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.55;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .card-date { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+  .card-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .card-tag {
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--surface3);
+    padding: 2px 7px;
+    border-radius: 12px;
+    font-family: var(--mono);
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .btn-sm {
+    padding: 4px 10px;
+    font-size: 11px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text3);
+  }
+  .btn-sm:hover { color: var(--text); background: var(--surface3); }
+  .btn-sm.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+  /* ── CHAT PANEL ── */
+  .chat-panel {
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .chat-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .chat-header-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .chat-title {
+    font-family: var(--serif);
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .msg {
+    max-width: 92%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .msg-ai {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    color: var(--text);
+  }
+
+  .msg-user {
+    background: var(--accent-dim);
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+    color: #fff;
+  }
+
+  .msg-system {
+    background: transparent;
+    border: 1px dashed var(--border2);
+    align-self: center;
+    font-size: 12px;
+    color: var(--text3);
+    font-family: var(--mono);
+    text-align: center;
+    max-width: 80%;
+  }
+
+  .msg-thinking {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+    color: var(--text3);
+    font-style: italic;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dots span {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--text3);
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-5px); }
+  }
+
+  .chat-input-area {
+    padding: 1rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+  }
+
+  .chat-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 9px 14px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--sans);
+    outline: none;
+    resize: none;
+    max-height: 120px;
+    transition: border-color 0.2s;
+  }
+  .chat-input:focus { border-color: var(--accent-dim); }
+  .chat-input::placeholder { color: var(--text3); }
+
+  .btn-send {
+    width: 38px; height: 38px;
+    background: var(--accent-dim);
+    border: none;
+    border-radius: 9px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    align-self: flex-end;
+  }
+  .btn-send:hover { background: var(--accent); }
+  .btn-send svg { width: 16px; height: 16px; fill: white; }
+
+  /* ── MODAL ── */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-backdrop.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 18px;
+    width: 100%;
+    max-width: 560px;
+    padding: 2rem;
+    transform: translateY(16px);
+    transition: transform 0.25s;
+  }
+  .modal-backdrop.open .modal { transform: translateY(0); }
+
+  .modal-title {
+    font-family: var(--serif);
+    font-size: 1.4rem;
+    color: var(--text);
+    margin-bottom: 1.5rem;
+  }
+
+  .form-group {
+    margin-bottom: 1.1rem;
+  }
+
+  .form-label {
+    display: block;
+    font-size: 11px;
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 6px;
+  }
+
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 9px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: var(--sans);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--accent-dim);
+  }
+  .form-select option { background: var(--surface2); }
+  .form-textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
+
+  .modal-footer {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    color: var(--text3);
+    gap: 12px;
+  }
+
+  .empty-glyph {
+    font-size: 3rem;
+    opacity: 0.3;
+  }
+
+  .empty-title {
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    color: var(--text2);
+  }
+
+  .empty-sub { font-size: 13px; }
+
+  /* ── DETAIL VIEW ── */
+  .detail-view {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    display: none;
+  }
+  .detail-view.visible { display: block; }
+
+  .detail-title {
+    font-family: var(--serif);
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .detail-body {
+    color: var(--text2);
+    font-size: 14px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+
+  .ai-summary {
+    background: var(--accent-glow);
+    border: 1px solid rgba(201,184,255,0.2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 1rem;
+    font-size: 13px;
+    color: var(--accent);
+    line-height: 1.6;
+  }
+
+  .ai-summary-label {
+    font-size: 10px;
+    font-family: var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-dim);
+    margin-bottom: 6px;
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border2); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 13px;
+    color: var(--text);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 999;
+    pointer-events: none;
+    font-family: var(--mono);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ── LOADING ── */
+  .loading-bar {
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-dim), var(--teal-dim));
+    position: fixed;
+    top: 0; left: 0;
+    width: 0%;
+    z-index: 999;
+    transition: width 0.3s;
+  }
+
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; }
+    aside { display: none; }
+    .content { grid-template-columns: 1fr; }
+    .chat-panel { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-bar" id="loadingBar"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo-mark">🧠</div>
+  <div>
+    <div class="logo-text">Mnemosyne</div>
+  </div>
+  <span class="logo-sub">AI Memory Assistant</span>
+  <div class="api-key-area">
+    <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-api03-..." />
+    <button class="btn-save-key" onclick="saveApiKey()">Save Key</button>
+  </div>
+</header>
+
+<!-- MAIN APP -->
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="sidebar-section">Stats</div>
+    <div class="stats-block">
+      <div class="stat-row">
+        <span class="stat-label">Total Memories</span>
+        <span class="stat-val" id="statTotal">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">This Week</span>
+        <span class="stat-val" id="statWeek">0</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Tags Used</span>
+        <span class="stat-val" id="statTags">0</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">Categories</div>
+    <div class="tag-list" id="categoryFilters">
+      <span class="tag active" data-filter="all" onclick="filterCategory(this)">All</span>
+      <span class="tag" data-filter="personal" onclick="filterCategory(this)">Personal</span>
+      <span class="tag" data-filter="work" onclick="filterCategory(this)">Work</span>
+      <span class="tag" data-filter="idea" onclick="filterCategory(this)">Ideas</span>
+      <span class="tag" data-filter="fact" onclick="filterCategory(this)">Facts</span>
+      <span class="tag" data-filter="goal" onclick="filterCategory(this)">Goals</span>
+    </div>
+
+    <div class="sidebar-section">Recent</div>
+    <div class="recent-list" id="recentList"></div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main>
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input type="text" class="search-input" id="searchInput" placeholder="Search memories..." oninput="handleSearch(this.value)" />
+      </div>
+      <button class="btn btn-teal" onclick="openAddModal()">+ New Memory</button>
+      <button class="btn btn-ghost" onclick="exportMemories()">Export</button>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+      <!-- MEMORIES PANEL -->
+      <div class="memories-panel" id="memoriesPanel">
+        <div id="detailSection"></div>
+        <div class="memories-grid" id="memoriesGrid"></div>
+        <div class="empty-state" id="emptyState" style="display:none;">
+          <div class="empty-glyph">◎</div>
+          <div class="empty-title">No memories yet</div>
+          <div class="empty-sub">Click "+ New Memory" to store your first thought.</div>
+        </div>
+      </div>
+
+      <!-- CHAT PANEL -->
+      <div class="chat-panel">
+        <div class="chat-header">
+          <div class="chat-header-dot"></div>
+          <div class="chat-title">Ask about your memories</div>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+          <div class="msg msg-system">AI assistant connected to your memory database</div>
+          <div class="msg msg-ai">Hello! I'm your memory assistant. Ask me anything about your stored memories — "What goals have I set?", "Summarize my work notes", or "What ideas did I have last week?"</div>
+        </div>
+        <div class="chat-input-area">
+          <textarea class="chat-input" id="chatInput" rows="1" placeholder="Ask about your memories..." onkeydown="handleChatKey(event)"></textarea>
+          <button class="btn-send" onclick="sendChat()">
+            <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-backdrop" id="memoryModal">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">New Memory</div>
+
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input type="text" class="form-input" id="memTitle" placeholder="What is this memory about?" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Content</label>
+      <textarea class="form-textarea" id="memContent" placeholder="Describe your memory, note, idea, or fact in detail..."></textarea>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-select" id="memType">
+          <option value="personal">Personal</option>
+          <option value="work">Work</option>
+          <option value="idea">Idea</option>
+          <option value="fact">Fact</option>
+          <option value="goal">Goal</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tags (comma-separated)</label>
+        <input type="text" class="form-input" id="memTags" placeholder="health, family, 2024" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">AI Enhancement</label>
+      <button class="btn btn-ghost" style="width:100%;font-size:13px;" onclick="aiEnhanceMemory()">✦ Auto-tag & summarize with AI</button>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMemory()">Save Memory</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATABASE (IndexedDB) ──────────────────────────────
+let db;
+const DB_NAME = 'MnemosyneDB';
+const DB_VER = 1;
+const STORE = 'memories';
+
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) {
+        const store = d.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('type', 'type', { unique: false });
+        store.createIndex('created', 'created', { unique: false });
+        store.createIndex('title', 'title', { unique: false });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function dbGetAll() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function dbAdd(mem) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).add(mem);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function dbPut(mem) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).put(mem);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function dbDelete(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const req = tx.objectStore(STORE).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+// ── STATE ────────────────────────────────────────────
+let memories = [];
+let filteredMemories = [];
+let currentFilter = 'all';
+let searchQuery = '';
+let selectedMemoryId = null;
+let editingId = null;
+let apiKey = '';
+let chatHistory = [];
+
+// ── INIT ─────────────────────────────────────────────
+async function init() {
+  await initDB();
+  apiKey = localStorage.getItem('mnemosyne_key') || '';
+  if (apiKey) document.getElementById('apiKeyInput').value = apiKey;
+  await loadMemories();
+}
+
+async function loadMemories() {
+  memories = await dbGetAll();
+  memories.sort((a, b) => b.created - a.created);
+  applyFilters();
+  updateStats();
+  updateRecent();
+}
+
+// ── FILTERS ──────────────────────────────────────────
+function applyFilters() {
+  filteredMemories = memories.filter(m => {
+    const matchCat = currentFilter === 'all' || m.type === currentFilter;
+    const q = searchQuery.toLowerCase();
+    const matchQ = !q || m.title.toLowerCase().includes(q) ||
+      m.content.toLowerCase().includes(q) ||
+      (m.tags || []).some(t => t.toLowerCase().includes(q));
+    return matchCat && matchQ;
+  });
+  renderGrid();
+}
+
+function filterCategory(el) {
+  document.querySelectorAll('.tag[data-filter]').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentFilter = el.dataset.filter;
+  applyFilters();
+}
+
+function handleSearch(val) {
+  searchQuery = val;
+  applyFilters();
+}
+
+// ── RENDER ───────────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById('memoriesGrid');
+  const empty = document.getElementById('emptyState');
+  if (!filteredMemories.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'flex';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = filteredMemories.map(m => cardHTML(m)).join('');
+}
+
+function cardHTML(m) {
+  const date = new Date(m.created).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'2-digit' });
+  const tags = (m.tags || []).slice(0,3).map(t => `<span class="card-tag">${t}</span>`).join('');
+  const selected = m.id === selectedMemoryId ? 'selected' : '';
+  return `
+  <div class="memory-card ${selected}" id="card-${m.id}" onclick="selectMemory(${m.id})">
+    <span class="card-type type-${m.type}">${m.type}</span>
+    <div class="card-title">${escHtml(m.title)}</div>
+    <div class="card-preview">${escHtml(m.content)}</div>
+    <div class="card-footer">
+      <span class="card-date">${date}</span>
+      <div class="card-tags">${tags}</div>
+    </div>
+    <div class="card-actions">
+      <button class="btn-sm" onclick="event.stopPropagation();editMemory(${m.id})">edit</button>
+      <button class="btn-sm" onclick="event.stopPropagation();aiSummarize(${m.id})">✦ ai</button>
+      <button class="btn-sm danger" onclick="event.stopPropagation();deleteMemory(${m.id})">delete</button>
+    </div>
+  </div>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function selectMemory(id) {
+  selectedMemoryId = id;
+  renderGrid();
+  const m = memories.find(x => x.id === id);
+  if (!m) return;
+  const ds = document.getElementById('detailSection');
+  const date = new Date(m.created).toLocaleString();
+  ds.innerHTML = `
+    <div class="detail-view visible">
+      <span class="card-type type-${m.type}">${m.type}</span>
+      <div class="detail-title">${escHtml(m.title)}</div>
+      <div class="detail-body">${escHtml(m.content)}</div>
+      ${m.aiSummary ? `
+        <div class="ai-summary">
+          <div class="ai-summary-label">✦ AI Insight</div>
+          ${escHtml(m.aiSummary)}
+        </div>` : ''}
+      <div style="margin-top:12px;font-size:11px;color:var(--text3);font-family:var(--mono);">
+        Stored ${date} · Tags: ${(m.tags||[]).join(', ') || 'none'}
+      </div>
+    </div>`;
+  ds.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── SIDEBAR ──────────────────────────────────────────
+function updateStats() {
+  const now = Date.now();
+  const weekAgo = now - 7 * 86400000;
+  document.getElementById('statTotal').textContent = memories.length;
+  document.getElementById('statWeek').textContent = memories.filter(m => m.created > weekAgo).length;
+  const allTags = new Set(memories.flatMap(m => m.tags || []));
+  document.getElementById('statTags').textContent = allTags.size;
+}
+
+function updateRecent() {
+  const list = document.getElementById('recentList');
+  const recent = memories.slice(0, 8);
+  list.innerHTML = recent.map(m => {
+    const date = new Date(m.created).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    const selected = m.id === selectedMemoryId ? 'selected' : '';
+    return `<div class="recent-item ${selected}" onclick="selectMemory(${m.id})">
+      <div class="recent-item-title">${escHtml(m.title)}</div>
+      <div class="recent-item-date">${date} · ${m.type}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── MODAL ────────────────────────────────────────────
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'New Memory';
+  document.getElementById('memTitle').value = '';
+  document.getElementById('memContent').value = '';
+  document.getElementById('memType').value = 'personal';
+  document.getElementById('memTags').value = '';
+  document.getElementById('memoryModal').classList.add('open');
+  setTimeout(() => document.getElementById('memTitle').focus(), 100);
+}
+
+function editMemory(id) {
+  const m = memories.find(x => x.id === id);
+  if (!m) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'Edit Memory';
+  document.getElementById('memTitle').value = m.title;
+  document.getElementById('memContent').value = m.content;
+  document.getElementById('memType').value = m.type;
+  document.getElementById('memTags').value = (m.tags || []).join(', ');
+  document.getElementById('memoryModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('memoryModal').classList.remove('open');
+}
+
+document.getElementById('memoryModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+async function saveMemory() {
+  const title = document.getElementById('memTitle').value.trim();
+  const content = document.getElementById('memContent').value.trim();
+  if (!title || !content) { showToast('Title and content are required'); return; }
+
+  const tags = document.getElementById('memTags').value
+    .split(',').map(t => t.trim()).filter(Boolean);
+
+  const mem = {
+    title,
+    content,
+    type: document.getElementById('memType').value,
+    tags,
+    created: editingId ? memories.find(m=>m.id===editingId)?.created || Date.now() : Date.now(),
+    updated: Date.now(),
+    aiSummary: editingId ? memories.find(m=>m.id===editingId)?.aiSummary : null
+  };
+
+  if (editingId) {
+    mem.id = editingId;
+    await dbPut(mem);
+    showToast('Memory updated');
+  } else {
+    await dbAdd(mem);
+    showToast('Memory stored');
+  }
+
+  closeModal();
+  await loadMemories();
+}
+
+async function deleteMemory(id) {
+  if (!confirm('Delete this memory permanently?')) return;
+  await dbDelete(id);
+  if (selectedMemoryId === id) {
+    selectedMemoryId = null;
+    document.getElementById('detailSection').innerHTML = '';
+  }
+  await loadMemories();
+  showToast('Memory deleted');
+}
+
+// ── AI FUNCTIONS ─────────────────────────────────────
+async function callClaude(systemPrompt, userMsg, maxTokens = 600) {
+  if (!apiKey) {
+    showToast('Please enter your Anthropic API key first');
+    throw new Error('No API key');
+  }
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMsg }]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+  const data = await res.json();
+  return data.content?.[0]?.text || '';
+}
+
+async function aiEnhanceMemory() {
+  const title = document.getElementById('memTitle').value.trim();
+  const content = document.getElementById('memContent').value.trim();
+  if (!title || !content) { showToast('Add title and content first'); return; }
+
+  showToast('✦ AI enhancing...');
+  setLoading(true);
+  try {
+    const result = await callClaude(
+      'You are a memory assistant. Given a memory title and content, suggest: 1) up to 5 relevant tags (comma-separated, lowercase), 2) the best category (personal/work/idea/fact/goal). Respond ONLY in JSON: {"tags":"tag1,tag2,...","type":"category"}',
+      `Title: ${title}\nContent: ${content}`
+    );
+    const parsed = JSON.parse(result.replace(/```json|```/g,'').trim());
+    if (parsed.tags) document.getElementById('memTags').value = parsed.tags;
+    if (parsed.type) document.getElementById('memType').value = parsed.type;
+    showToast('✦ AI tags applied!');
+  } catch(e) {
+    showToast('AI error: ' + e.message);
+  }
+  setLoading(false);
+}
+
+async function aiSummarize(id) {
+  const m = memories.find(x => x.id === id);
+  if (!m) return;
+  showToast('✦ Generating insight...');
+  setLoading(true);
+  try {
+    const summary = await callClaude(
+      'You are a personal memory assistant. Provide a concise, insightful 2-3 sentence analysis of this memory. Note its significance, any patterns, and what action or reflection it might inspire.',
+      `Memory: "${m.title}"\n\n${m.content}\n\nTags: ${(m.tags||[]).join(', ')}`
+    );
+    m.aiSummary = summary;
+    await dbPut(m);
+    await loadMemories();
+    selectMemory(id);
+    showToast('✦ AI insight added!');
+  } catch(e) {
+    showToast('AI error: ' + e.message);
+  }
+  setLoading(false);
+}
+
+// ── CHAT ─────────────────────────────────────────────
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  addChatMsg(msg, 'user');
+
+  const thinking = addChatMsg('', 'thinking');
+
+  try {
+    const memContext = memories.slice(0, 30).map(m =>
+      `[${m.type.toUpperCase()}] "${m.title}" (${new Date(m.created).toDateString()})\nTags: ${(m.tags||[]).join(',')}\n${m.content.substring(0,300)}...`
+    ).join('\n\n---\n\n');
+
+    const systemPrompt = `You are Mnemosyne, an AI personal memory assistant. The user has stored the following memories in their database:\n\n${memContext || 'No memories stored yet.'}\n\nAnswer questions about their memories concisely and helpfully. If they ask to add, organize, or analyze memories, do so based on the data provided. Be warm, insightful, and personal.`;
+
+    chatHistory.push({ role: 'user', content: msg });
+    if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 800,
+        system: systemPrompt,
+        messages: chatHistory
+      })
+    });
+
+    thinking.remove();
+
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || 'No response';
+    chatHistory.push({ role: 'assistant', content: reply });
+    addChatMsg(reply, 'ai');
+
+  } catch(e) {
+    thinking.remove();
+    addChatMsg(apiKey ? `Error: ${e.message}` : 'Please add your Anthropic API key in the header to use AI features.', 'ai');
+  }
+}
+
+function addChatMsg(text, type) {
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  if (type === 'thinking') {
+    div.className = 'msg msg-thinking';
+    div.innerHTML = 'Thinking <div class="dots"><span></span><span></span><span></span></div>';
+  } else {
+    div.className = `msg msg-${type}`;
+    div.textContent = text;
+  }
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+}
+
+// ── EXPORT ───────────────────────────────────────────
+async function exportMemories() {
+  const data = await dbGetAll();
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `mnemosyne-export-${Date.now()}.json`;
+  a.click();
+  showToast('Memories exported!');
+}
+
+// ── API KEY ──────────────────────────────────────────
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { showToast('Enter an API key'); return; }
+  apiKey = key;
+  localStorage.setItem('mnemosyne_key', key);
+  showToast('API key saved!');
+}
+
+// ── UTILS ────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function setLoading(on) {
+  const bar = document.getElementById('loadingBar');
+  bar.style.width = on ? '70%' : '100%';
+  setTimeout(() => { if (!on) bar.style.width = '0%'; }, 400);
+}
+
+// ── SEED DATA ────────────────────────────────────────
+async function seedIfEmpty() {
+  const all = await dbGetAll();
+  if (all.length > 0) return;
+  const seeds = [
+    { title: "Morning routine that works", content: "Wake at 6am, drink water immediately, 10 min stretch, journal for 5 mins. This has reduced my morning anxiety significantly. The key is not checking my phone until after breakfast.", type: "personal", tags: ["routine", "health", "morning"], created: Date.now() - 86400000*3, updated: Date.now() },
+    { title: "Project Phoenix launch notes", content: "Q3 deadline is firm. Backend team needs 2 more engineers. The API gateway bottleneck needs resolving before we can scale. Mike suggested GraphQL migration — worth exploring in Q4.", type: "work", tags: ["project", "planning", "Q3"], created: Date.now() - 86400000*7, updated: Date.now() },
+    { title: "App idea: habit streaks with social accountability", content: "Build an app where you commit to habits publicly to a small group of trusted friends. Each person sees each other's streaks. Shame and pride mechanics drive consistency. Monetize via premium groups.", type: "idea", tags: ["app", "startup", "habits"], created: Date.now() - 86400000*2, updated: Date.now() },
+    { title: "The 40% rule", content: "Navy SEALs use this: when your mind says you're done, you're only at 40% of your actual capacity. Discomfort is not a signal to stop — it's a signal that you've just entered the growth zone.", type: "fact", tags: ["psychology", "performance", "mindset"], created: Date.now() - 86400000*5, updated: Date.now() },
+    { title: "Run a half marathon by December", content: "Current longest run: 8km. Need to add 1km every 10 days. Following the 10% rule. Target race: December 15th city half marathon. Already signed up.", type: "goal", tags: ["fitness", "running", "2024"], created: Date.now() - 86400000*1, updated: Date.now() },
+  ];
+  for (const s of seeds) await dbAdd(s);
+}
+
+// ── START ────────────────────────────────────────────
+init().then(() => seedIfEmpty()).then(() => loadMemories());
+</script>
+</body>
+</html>
